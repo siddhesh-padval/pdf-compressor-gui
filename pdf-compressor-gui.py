@@ -17,22 +17,20 @@ class PDFCompressorApp:
         # Quality Preset
         tk.Label(root, text="Quality Preset:").grid(row=1, column=0, sticky="e", padx=5)
         self.quality_preset = tk.StringVar(value="custom")
-        tk.OptionMenu(root, self.quality_preset, "custom", "screen", "ebook", "printer", "prepress", "default").grid(row=1, column=1, sticky="w", padx=5)
+        preset_menu = tk.OptionMenu(root, self.quality_preset, "custom", "screen", "ebook", "printer", "prepress", "default", command=self.update_resolutions)
+        preset_menu.grid(row=1, column=1, sticky="w", padx=5)
 
-        # Image Resolution fields
+        # Image Resolutions
         tk.Label(root, text="Color Image Resolution:").grid(row=2, column=0, sticky="e", padx=5)
         self.color_res = tk.Entry(root)
-        self.color_res.insert(0, "200")
         self.color_res.grid(row=2, column=1, sticky="w", padx=5)
 
         tk.Label(root, text="Gray Image Resolution:").grid(row=3, column=0, sticky="e", padx=5)
         self.gray_res = tk.Entry(root)
-        self.gray_res.insert(0, "200")
         self.gray_res.grid(row=3, column=1, sticky="w", padx=5)
 
         tk.Label(root, text="Mono Image Resolution:").grid(row=4, column=0, sticky="e", padx=5)
         self.mono_res = tk.Entry(root)
-        self.mono_res.insert(0, "200")
         self.mono_res.grid(row=4, column=1, sticky="w", padx=5)
 
         # Compatibility Level
@@ -44,9 +42,11 @@ class PDFCompressorApp:
         tk.Button(root, text="Compress PDF", bg="green", fg="white", command=self.compress_pdf).grid(row=6, column=0, pady=10, padx=5)
         tk.Button(root, text="Restore Defaults", command=self.restore_defaults).grid(row=6, column=1, pady=10, sticky="w")
 
-        # Status label
-        self.status_label = tk.Label(root, text="", fg="blue")
-        self.status_label.grid(row=7, column=0, columnspan=3, pady=(5, 10))
+        # Status message
+        self.status_message = tk.Message(root, text="", fg="blue", width=500, anchor="w", justify="left")
+        self.status_message.grid(row=7, column=0, columnspan=3, pady=(5, 10), padx=5)
+
+        self.restore_defaults()
 
     def browse_input(self):
         file_path = filedialog.askopenfilename(filetypes=[("PDF Files", "*.pdf")])
@@ -56,19 +56,33 @@ class PDFCompressorApp:
 
     def restore_defaults(self):
         self.quality_preset.set("custom")
-        self.color_res.delete(0, tk.END)
-        self.color_res.insert(0, "200")
-        self.gray_res.delete(0, tk.END)
-        self.gray_res.insert(0, "200")
-        self.mono_res.delete(0, tk.END)
-        self.mono_res.insert(0, "200")
+        for entry, val in zip((self.color_res, self.gray_res, self.mono_res), (200, 200, 200)):
+            entry.config(state="normal")
+            entry.delete(0, tk.END)
+            entry.insert(0, str(val))
         self.compat_level.set("1.4")
-        self.status_label.config(text="Defaults restored.", fg="blue")
+        self.status_message.config(text="Defaults restored.", fg="blue")
+
+    def update_resolutions(self, value):
+        presets = {
+            "screen": (72, 72, 72),
+            "ebook": (150, 150, 150),
+            "printer": (300, 300, 300),
+            "prepress": (300, 300, 300),
+            "default": (300, 300, 300),
+            "custom": (200, 200, 200)
+        }
+
+        res = presets.get(value, (200, 200, 200))
+        for entry, val in zip((self.color_res, self.gray_res, self.mono_res), res):
+            entry.config(state="normal")
+            entry.delete(0, tk.END)
+            entry.insert(0, str(val))
 
     def compress_pdf(self):
         input_pdf = self.input_entry.get().strip()
         if not os.path.isfile(input_pdf):
-            self.status_label.config(text="Error: Invalid input PDF.", fg="red")
+            self.status_message.config(text="Error: Invalid input PDF.", fg="red")
             return
 
         base_name = os.path.splitext(os.path.basename(input_pdf))[0]
@@ -100,13 +114,27 @@ class PDFCompressorApp:
 
         try:
             subprocess.run(cmd, check=True)
-            self.status_label.config(
-                text=f"Success: Compressed PDF saved as\n{output_pdf}", fg="green"
+            orig_size = os.path.getsize(input_pdf)
+            comp_size = os.path.getsize(output_pdf)
+
+            def readable_size(size_bytes):
+                for unit in ['B', 'KB', 'MB', 'GB']:
+                    if size_bytes < 1024.0:
+                        return f"{size_bytes:.2f} {unit}"
+                    size_bytes /= 1024.0
+                return f"{size_bytes:.2f} TB"
+
+            msg = (
+                f"Compression Successful!\n\n"
+                f"Saved to: {output_pdf}\n"
+                f"Original Size: {readable_size(orig_size)}\n"
+                f"Compressed Size: {readable_size(comp_size)}"
             )
+            self.status_message.config(text=msg, fg="green")
         except subprocess.CalledProcessError:
-            self.status_label.config(text="Compression failed. Check Ghostscript.", fg="red")
+            self.status_message.config(text="Compression failed. Check Ghostscript installation.", fg="red")
         except FileNotFoundError:
-            self.status_label.config(text="Ghostscript not found. Install and add to PATH.", fg="red")
+            self.status_message.config(text="Ghostscript not found. Please install and add to PATH.", fg="red")
 
 if __name__ == "__main__":
     root = tk.Tk()
