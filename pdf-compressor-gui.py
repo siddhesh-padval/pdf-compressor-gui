@@ -1,140 +1,114 @@
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog
 import subprocess
 import os
 
-# Preset values for resolution based on Ghostscript settings
-PRESET_VALUES = {
-    "screen":    (72, 72, 72),
-    "ebook":     (150, 150, 150),
-    "printer":   (300, 300, 300),
-    "prepress":  (300, 300, 1200),
-    "default":   (200, 200, 200)
-}
+class PDFCompressorApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("PDF Compressor (Ghostscript GUI)")
 
-def apply_preset(preset):
-    res = PRESET_VALUES.get(preset, PRESET_VALUES["default"])
-    color_res.set(res[0])
-    gray_res.set(res[1])
-    mono_res.set(res[2])
+        # Input PDF
+        tk.Label(root, text="Input PDF:").grid(row=0, column=0, sticky="e", padx=5, pady=5)
+        self.input_entry = tk.Entry(root, width=50)
+        self.input_entry.grid(row=0, column=1, padx=5)
+        tk.Button(root, text="Browse", command=self.browse_input).grid(row=0, column=2, padx=5)
 
-def restore_defaults():
-    color_res.set(200)
-    gray_res.set(200)
-    mono_res.set(200)
-    compat_level.set("1.4")
-    preset_choice.set("custom")
+        # Quality Preset
+        tk.Label(root, text="Quality Preset:").grid(row=1, column=0, sticky="e", padx=5)
+        self.quality_preset = tk.StringVar(value="custom")
+        tk.OptionMenu(root, self.quality_preset, "custom", "screen", "ebook", "printer", "prepress", "default").grid(row=1, column=1, sticky="w", padx=5)
 
-def compress_pdf(input_path, output_path, color, gray, mono, compat):
-    cmd = [
-        'gs',
-        '-sDEVICE=pdfwrite',
-        f'-dCompatibilityLevel={compat}',
-        '-dNOPAUSE',
-        '-dQUIET',
-        '-dBATCH',
-        '-dDownsampleColorImages=true',
-        f'-dColorImageResolution={color}',
-        '-dDownsampleGrayImages=true',
-        f'-dGrayImageResolution={gray}',
-        '-dDownsampleMonoImages=true',
-        f'-dMonoImageResolution={mono}',
-        f'-sOutputFile={output_path}',
-        input_path
-    ]
-    try:
-        subprocess.run(cmd, check=True)
-        messagebox.showinfo("Success", f"Compressed PDF saved to:\n{output_path}")
+        # Image Resolution fields
+        tk.Label(root, text="Color Image Resolution:").grid(row=2, column=0, sticky="e", padx=5)
+        self.color_res = tk.Entry(root)
+        self.color_res.insert(0, "200")
+        self.color_res.grid(row=2, column=1, sticky="w", padx=5)
 
-    except subprocess.CalledProcessError:
-        messagebox.showerror("Error", "Compression failed. Make sure Ghostscript is installed and in your PATH.")
+        tk.Label(root, text="Gray Image Resolution:").grid(row=3, column=0, sticky="e", padx=5)
+        self.gray_res = tk.Entry(root)
+        self.gray_res.insert(0, "200")
+        self.gray_res.grid(row=3, column=1, sticky="w", padx=5)
 
-def select_input_file():
-    file_path = filedialog.askopenfilename(filetypes=[("PDF files", "*.pdf")])
-    if file_path:
-        input_entry.delete(0, tk.END)
-        input_entry.insert(0, file_path)
+        tk.Label(root, text="Mono Image Resolution:").grid(row=4, column=0, sticky="e", padx=5)
+        self.mono_res = tk.Entry(root)
+        self.mono_res.insert(0, "200")
+        self.mono_res.grid(row=4, column=1, sticky="w", padx=5)
 
-def select_output_file():
-    file_path = filedialog.asksaveasfilename(defaultextension=".pdf", filetypes=[("PDF files", "*.pdf")])
-    if file_path:
-        output_entry.delete(0, tk.END)
-        output_entry.insert(0, file_path)
+        # Compatibility Level
+        tk.Label(root, text="PDF Compatibility Level:").grid(row=5, column=0, sticky="e", padx=5)
+        self.compat_level = tk.StringVar(value="1.4")
+        tk.OptionMenu(root, self.compat_level, "1.3", "1.4", "1.5", "1.6", "1.7").grid(row=5, column=1, sticky="w", padx=5)
 
-def run_compression():
-    input_path = input_entry.get()
-    output_path = output_entry.get()
+        # Buttons
+        tk.Button(root, text="Compress PDF", bg="green", fg="white", command=self.compress_pdf).grid(row=6, column=0, pady=10, padx=5)
+        tk.Button(root, text="Restore Defaults", command=self.restore_defaults).grid(row=6, column=1, pady=10, sticky="w")
 
-    if not input_path or not output_path:
-        messagebox.showwarning("Input Required", "Please select both input and output files.")
-        return
+        # Status label
+        self.status_label = tk.Label(root, text="", fg="blue")
+        self.status_label.grid(row=7, column=0, columnspan=3, pady=(5, 10))
 
-    compress_pdf(
-        input_path,
-        output_path,
-        color_res.get(),
-        gray_res.get(),
-        mono_res.get(),
-        compat_level.get()
-    )
+    def browse_input(self):
+        file_path = filedialog.askopenfilename(filetypes=[("PDF Files", "*.pdf")])
+        if file_path:
+            self.input_entry.delete(0, tk.END)
+            self.input_entry.insert(0, file_path)
 
-# --- GUI Setup ---
-root = tk.Tk()
-root.title("PDF Compressor (Ghostscript GUI)")
+    def restore_defaults(self):
+        self.quality_preset.set("custom")
+        self.color_res.delete(0, tk.END)
+        self.color_res.insert(0, "200")
+        self.gray_res.delete(0, tk.END)
+        self.gray_res.insert(0, "200")
+        self.mono_res.delete(0, tk.END)
+        self.mono_res.insert(0, "200")
+        self.compat_level.set("1.4")
+        self.status_label.config(text="Defaults restored.", fg="blue")
 
-frame = tk.Frame(root, padx=10, pady=10)
-frame.pack()
+    def compress_pdf(self):
+        input_pdf = self.input_entry.get().strip()
+        if not os.path.isfile(input_pdf):
+            self.status_label.config(text="Error: Invalid input PDF.", fg="red")
+            return
 
-# File selection
-tk.Label(frame, text="Input PDF:").grid(row=0, column=0, sticky='e')
-input_entry = tk.Entry(frame, width=50)
-input_entry.grid(row=0, column=1)
-tk.Button(frame, text="Browse", command=select_input_file).grid(row=0, column=2)
+        base_name = os.path.splitext(os.path.basename(input_pdf))[0]
+        quality = self.quality_preset.get()
+        output_pdf = os.path.join(os.path.dirname(input_pdf), f"{base_name}_compressed_{quality}.pdf")
 
-tk.Label(frame, text="Output PDF:").grid(row=1, column=0, sticky='e')
-output_entry = tk.Entry(frame, width=50)
-output_entry.grid(row=1, column=1)
-tk.Button(frame, text="Browse", command=select_output_file).grid(row=1, column=2)
+        cmd = [
+            "gs",
+            "-sDEVICE=pdfwrite",
+            f"-dCompatibilityLevel={self.compat_level.get()}",
+            "-dNOPAUSE",
+            "-dQUIET",
+            "-dBATCH",
+            f"-sOutputFile={output_pdf}",
+            input_pdf
+        ]
 
-# Preset selector
-tk.Label(frame, text="Quality Preset:").grid(row=2, column=0, sticky='e')
-preset_choice = tk.StringVar(value="custom")
-preset_menu = ttk.Combobox(frame, textvariable=preset_choice, state="readonly",
-                           values=["custom", "screen", "ebook", "printer", "prepress"])
-preset_menu.grid(row=2, column=1, sticky='w')
+        if quality != "custom":
+            cmd.insert(-2, f"-dPDFSETTINGS=/{quality}")
+        else:
+            cmd.extend([
+                "-dDownsampleColorImages=true",
+                "-dDownsampleGrayImages=true",
+                "-dDownsampleMonoImages=true",
+                f"-dColorImageResolution={self.color_res.get()}",
+                f"-dGrayImageResolution={self.gray_res.get()}",
+                f"-dMonoImageResolution={self.mono_res.get()}",
+            ])
 
-def on_preset_change(event):
-    preset = preset_choice.get()
-    if preset != "custom":
-        apply_preset(preset)
+        try:
+            subprocess.run(cmd, check=True)
+            self.status_label.config(
+                text=f"Success: Compressed PDF saved as\n{output_pdf}", fg="green"
+            )
+        except subprocess.CalledProcessError:
+            self.status_label.config(text="Compression failed. Check Ghostscript.", fg="red")
+        except FileNotFoundError:
+            self.status_label.config(text="Ghostscript not found. Install and add to PATH.", fg="red")
 
-preset_menu.bind("<<ComboboxSelected>>", on_preset_change)
-
-# Compression options
-tk.Label(frame, text="Color Image Resolution:").grid(row=3, column=0, sticky='e')
-color_res = tk.IntVar(value=200)
-tk.Entry(frame, textvariable=color_res, width=10).grid(row=3, column=1, sticky='w')
-
-tk.Label(frame, text="Gray Image Resolution:").grid(row=4, column=0, sticky='e')
-gray_res = tk.IntVar(value=200)
-tk.Entry(frame, textvariable=gray_res, width=10).grid(row=4, column=1, sticky='w')
-
-tk.Label(frame, text="Mono Image Resolution:").grid(row=5, column=0, sticky='e')
-mono_res = tk.IntVar(value=200)
-tk.Entry(frame, textvariable=mono_res, width=10).grid(row=5, column=1, sticky='w')
-
-tk.Label(frame, text="PDF Compatibility Level:").grid(row=6, column=0, sticky='e')
-compat_level = tk.StringVar(value="1.4")
-compat_dropdown = ttk.Combobox(frame, textvariable=compat_level,
-                                values=["1.3", "1.4", "1.5", "1.6", "1.7"],
-                                width=8, state="readonly")
-compat_dropdown.grid(row=6, column=1, sticky='w')
-
-# Buttons
-button_frame = tk.Frame(frame)
-button_frame.grid(row=7, column=0, columnspan=3, pady=15)
-
-tk.Button(button_frame, text="Compress PDF", command=run_compression, bg="green", fg="white", padx=10).pack(side='left', padx=5)
-tk.Button(button_frame, text="Restore Defaults", command=restore_defaults, bg="gray", fg="white", padx=10).pack(side='left', padx=5)
-
-root.mainloop()
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = PDFCompressorApp(root)
+    root.mainloop()
