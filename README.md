@@ -42,7 +42,7 @@ python3 gscompressor.py
 
 ## 🖼️ Screenshots
 
-> _(Add screenshots of the GUI here once you run it)_
+> _(Add screenshots of the GUI here later)_
 
 ---
 
