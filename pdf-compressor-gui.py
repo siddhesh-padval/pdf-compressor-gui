@@ -12,7 +12,7 @@ class PDFCompressorApp:
         tk.Label(root, text="Input PDF:").grid(row=0, column=0, sticky="e", padx=5, pady=5)
         self.input_entry = tk.Entry(root, width=50)
         self.input_entry.grid(row=0, column=1, padx=5)
-        tk.Button(root, text="Browse", command=self.browse_input).grid(row=0, column=2, padx=5)
+        tk.Button(root, text="Browse", command=self.open_custom_file_browser).grid(row=0, column=2, padx=5)
 
         # Quality Preset
         tk.Label(root, text="Quality Preset:").grid(row=1, column=0, sticky="e", padx=5)
@@ -48,11 +48,63 @@ class PDFCompressorApp:
 
         self.restore_defaults()
 
-    def browse_input(self):
-        file_path = filedialog.askopenfilename(filetypes=[("PDF Files", "*.pdf")])
-        if file_path:
-            self.input_entry.delete(0, tk.END)
-            self.input_entry.insert(0, file_path)
+    def open_custom_file_browser(self):
+        top = tk.Toplevel(self.root)
+        top.title("Select PDF File")
+        top.geometry("600x400")
+
+        frame = tk.Frame(top)
+        frame.pack(fill="both", expand=True)
+
+        listbox = tk.Listbox(frame, width=100)
+        listbox.pack(side="left", fill="both", expand=True)
+
+        scrollbar = tk.Scrollbar(frame, orient="vertical", command=listbox.yview)
+        scrollbar.pack(side="right", fill="y")
+        listbox.config(yscrollcommand=scrollbar.set)
+
+        current_dir = os.path.expanduser("~")
+
+        def update_listbox(directory):
+            listbox.delete(0, tk.END)
+            try:
+                entries = os.listdir(directory)
+                entries.sort(key=lambda x: (not os.path.isdir(os.path.join(directory, x)), x.lower()))
+            except PermissionError:
+                return
+
+            if os.path.dirname(directory) != directory:
+                listbox.insert(tk.END, "..")
+
+            for entry in entries:
+                full_path = os.path.join(directory, entry)
+                if os.path.isdir(full_path):
+                    listbox.insert(tk.END, f"[DIR] {entry}")
+                elif entry.lower().endswith(".pdf"):
+                    listbox.insert(tk.END, entry)
+
+        def on_select(event):
+            selection = listbox.curselection()
+            if selection:
+                selected = listbox.get(selection[0])
+                nonlocal current_dir
+
+                if selected == "..":
+                    current_dir = os.path.dirname(current_dir)
+                    update_listbox(current_dir)
+                elif selected.startswith("[DIR] "):
+                    dir_name = selected[6:]
+                    current_dir = os.path.join(current_dir, dir_name)
+                    update_listbox(current_dir)
+                else:
+                    file_path = os.path.join(current_dir, selected)
+                    self.input_entry.delete(0, tk.END)
+                    self.input_entry.insert(0, file_path)
+                    top.destroy()
+
+        listbox.bind("<Double-Button-1>", on_select)
+
+        update_listbox(current_dir)
 
     def restore_defaults(self):
         self.quality_preset.set("custom")
